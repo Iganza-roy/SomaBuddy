@@ -1,32 +1,29 @@
-# React + TypeScript + Vite
+# SomaBuddy
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+SomaBuddy is a React + TypeScript application built with Vite, Tailwind CSS,
+Supabase, and Lucide icons.
 
-Currently, two official plugins are available:
+## Getting started
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Install dependencies:
 
-## React Compiler
+   ```sh
+   npm install
+   ```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+2. Copy `.env.example` to `.env.local` and add your Supabase project URL and
+   anon key. The app can run without Supabase credentials until you call
+   `getSupabaseClient()`.
 
-## Expanding the Oxlint configuration
+3. Start the development server:
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+   ```sh
+   npm run dev
+   ```
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+## Available scripts
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+- `npm run dev` — start Vite in development mode
+- `npm run build` — type-check and create a production build
+- `npm run lint` — run Oxlint
+- `npm run preview` — preview the production build
