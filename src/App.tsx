@@ -11,7 +11,7 @@ function App() {
           SOMABUDDY
         </p>
         <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-          A little more in tune with you.
+        Easy learning for kids
         </h1>
         <p className="mt-5 max-w-md text-lg leading-8 text-slate-600">
           Your space for mindful moments, gentle routines, and feeling your
@@ -21,7 +21,7 @@ function App() {
           className="mt-8 inline-flex items-center gap-2 rounded-full bg-rose-600 px-5 py-3 font-medium text-white transition hover:bg-rose-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600"
           type="button"
         >
-          Get started
+          Start here
           <ArrowRight aria-hidden="true" size={18} />
         </button>
       </section>
