@@ -68,6 +68,8 @@ const STORAGE_KEY = 'somabuddy-learner-v1'
 const TODAY_LABEL = new Intl.DateTimeFormat('en-KE', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date()).toUpperCase()
 
 const avatarOptions = ['👧🏾', '👦🏿', '👧🏿', '👦🏾', '🧒🏽', '🧒🏿']
+type StoredProfile = Omit<LearnerProfile, 'dailyActivities' | 'activityDate' | 'dailyChallengeDate' | 'activityHistory'> &
+  Partial<Pick<LearnerProfile, 'dailyActivities' | 'activityDate' | 'dailyChallengeDate' | 'activityHistory'>>
 
 const topics: Topic[] = [
   {
@@ -213,7 +215,7 @@ const subjectInfo: Record<Subject, { icon: string; tone: string; detail: string 
   Mathematics: { icon: '🔢', tone: 'math', detail: 'Count, add & solve' },
 }
 
-function isProfile(value: unknown): value is LearnerProfile {
+function isProfile(value: unknown): value is StoredProfile {
   if (!value || typeof value !== 'object') return false
   const profile = value as Partial<LearnerProfile>
   return (
@@ -223,15 +225,14 @@ function isProfile(value: unknown): value is LearnerProfile {
     typeof profile.points === 'number' &&
     typeof profile.streak === 'number' &&
     typeof profile.lastStudyDate === 'string' &&
-    typeof profile.dailyActivities === 'number' &&
-    typeof profile.activityDate === 'string' &&
-    typeof profile.dailyChallengeDate === 'string' &&
-    profile.activityHistory !== null &&
-    typeof profile.activityHistory === 'object' &&
     Array.isArray(profile.completedTopics) &&
     typeof profile.correctAnswers === 'number' &&
     profile.attempts !== null &&
-    typeof profile.attempts === 'object'
+    typeof profile.attempts === 'object' &&
+    (profile.dailyActivities === undefined || typeof profile.dailyActivities === 'number') &&
+    (profile.activityDate === undefined || typeof profile.activityDate === 'string') &&
+    (profile.dailyChallengeDate === undefined || typeof profile.dailyChallengeDate === 'string') &&
+    (profile.activityHistory === undefined || (profile.activityHistory !== null && typeof profile.activityHistory === 'object'))
   )
 }
 
@@ -239,7 +240,14 @@ function loadProfile(): LearnerProfile | null {
   const saved = localStorage.getItem(STORAGE_KEY)
   if (!saved) return null
   const parsed: unknown = JSON.parse(saved)
-  return isProfile(parsed) ? parsed : null
+  if (!isProfile(parsed)) return null
+  return {
+    ...parsed,
+    dailyActivities: parsed.dailyActivities ?? 0,
+    activityDate: parsed.activityDate ?? '',
+    dailyChallengeDate: parsed.dailyChallengeDate ?? '',
+    activityHistory: parsed.activityHistory ?? {},
+  }
 }
 
 function say(text: string) {
