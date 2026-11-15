@@ -458,6 +458,7 @@ function App() {
             nextTopic={nextTopic}
             onStart={startTopic}
             onExplore={() => navigate('learn')}
+            onChooseSubject={(nextSubject) => { setSubject(nextSubject); navigate('learn') }}
           />
         )}
         {view === 'learn' && (
@@ -545,12 +546,13 @@ function WelcomeScreen({ onCreate }: { onCreate: (name: string, grade: number, a
   )
 }
 
-function Dashboard({ profile, dailyCompleted, nextTopic, onStart, onExplore }: {
+function Dashboard({ profile, dailyCompleted, nextTopic, onStart, onExplore, onChooseSubject }: {
   profile: LearnerProfile
   dailyCompleted: number
   nextTopic?: Topic
   onStart: (topic: Topic) => void
   onExplore: () => void
+  onChooseSubject: (subject: Subject) => void
 }) {
   const goal = 2
   const percent = Math.min(100, (dailyCompleted / goal) * 100)
@@ -599,7 +601,7 @@ function Dashboard({ profile, dailyCompleted, nextTopic, onStart, onExplore }: {
           {(Object.keys(subjectInfo) as Subject[]).map((item) => {
             const info = subjectInfo[item]
             const count = topics.filter((topic) => topic.subject === item && topic.grade === profile.grade).length
-            return <button className={`subject-card ${info.tone}`} key={item} onClick={onExplore}>
+            return <button className={`subject-card ${info.tone}`} key={item} onClick={() => onChooseSubject(item)}>
               <span className="subject-icon">{info.icon}</span><span className="subject-arrow"><ArrowRight size={17} /></span>
               <span className="subject-name">{item}</span><span className="subject-detail">{info.detail}</span>
               <span className="subject-bottom">{count} fun topics <span>•</span> Grade {profile.grade}</span>
