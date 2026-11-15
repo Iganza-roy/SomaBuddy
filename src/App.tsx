@@ -466,7 +466,7 @@ function App() {
           />
         )}
         {view === 'parent' && (
-          <ParentDashboard profile={profile} />
+          <ParentDashboard profile={profile} todayKey={todayKey} />
         )}
         {view === 'lesson' && activeTopic && (
           <LessonScreen
@@ -764,7 +764,7 @@ function LessonScreen({ profile, topic, stage, setStage, questionIndex, setQuest
   </div>
 }
 
-function ParentDashboard({ profile }: { profile: LearnerProfile }) {
+function ParentDashboard({ profile, todayKey }: { profile: LearnerProfile; todayKey: string }) {
   const [weekOffset, setWeekOffset] = useState(0)
   const completedTopics = topics.filter((topic) => profile.completedTopics.includes(topic.id))
   const weakTopics = Object.entries(profile.attempts)
@@ -773,29 +773,34 @@ function ParentDashboard({ profile }: { profile: LearnerProfile }) {
     .filter((topic): topic is Topic => Boolean(topic))
   const totalAnswers = Object.values(profile.attempts).reduce((total, result) => total + result.correct + result.missed, 0)
   const accuracy = totalAnswers ? Math.round((profile.correctAnswers / totalAnswers) * 100) : 0
-  const today = new Date()
-  const monday = new Date(today)
-  monday.setHours(0, 0, 0, 0)
-  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
-  const minutesThisWeek = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(monday)
-    date.setDate(date.getDate() + index)
-    return profile.activityHistory[dateKey(date)] ?? 0
-  }).reduce((sum, activities) => sum + activities * 5, 0)
-  const selectedMonday = new Date(monday)
-  selectedMonday.setDate(selectedMonday.getDate() - weekOffset * 7)
-  const weekDays = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(selectedMonday)
-    date.setDate(date.getDate() + index)
-    return { label: date.toLocaleDateString('en-KE', { weekday: 'short' }), activities: profile.activityHistory[dateKey(date)] ?? 0 }
-  })
-  const lastActivity = profile.lastStudyDate === dateKey()
-    ? 'Last active today'
-    : profile.lastStudyDate === dateKey(new Date(Date.now() - 86400000))
-      ? 'Last active yesterday'
-      : profile.lastStudyDate
-        ? `Last active ${new Date(profile.lastStudyDate).toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}`
-        : 'No activity yet'
+  const report = useMemo(() => {
+    const today = new Date(`${todayKey}T12:00:00`)
+    const monday = new Date(today)
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
+    const minutesThisWeek = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(monday)
+      date.setDate(date.getDate() + index)
+      return profile.activityHistory[dateKey(date)] ?? 0
+    }).reduce((sum, activities) => sum + activities * 5, 0)
+    const selectedMonday = new Date(monday)
+    selectedMonday.setDate(selectedMonday.getDate() - weekOffset * 7)
+    const weekDays = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(selectedMonday)
+      date.setDate(date.getDate() + index)
+      return { label: date.toLocaleDateString('en-KE', { weekday: 'short' }), activities: profile.activityHistory[dateKey(date)] ?? 0 }
+    })
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const lastActivity = profile.lastStudyDate === todayKey
+      ? 'Last active today'
+      : profile.lastStudyDate === dateKey(yesterday)
+        ? 'Last active yesterday'
+        : profile.lastStudyDate
+          ? `Last active ${new Date(`${profile.lastStudyDate}T12:00:00`).toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}`
+          : 'No activity yet'
+    return { minutesThisWeek, weekDays, lastActivity }
+  }, [profile, todayKey, weekOffset])
+  const { minutesThisWeek, weekDays, lastActivity } = report
   return <div className="page-content parent-page">
     <div className="page-intro parent-intro"><div><span className="eyebrow">A LITTLE LOOK AT THE GROWING</span><h1>{profile.name}’s learning <span>🌱</span></h1><p>A gentle overview of the time and care they put into learning.</p></div><div className="parent-readonly"><LockKeyhole size={14} /> PRIVATE PARENT VIEW</div></div>
     <section className="parent-overview">
