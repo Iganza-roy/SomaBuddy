@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
-  AudioLines,
   BookOpen,
   Check,
   CheckCircle2,
@@ -54,6 +53,9 @@ type LearnerProfile = {
   points: number
   streak: number
   lastStudyDate: string
+  dailyActivities: number
+  activityDate: string
+  dailyChallengeDate: string
   completedTopics: string[]
   correctAnswers: number
   attempts: Record<string, { correct: number; missed: number }>
@@ -62,6 +64,7 @@ type View = 'home' | 'learn' | 'parent' | 'lesson'
 type LessonStage = 'learn' | 'example' | 'practise' | 'celebrate'
 
 const STORAGE_KEY = 'somabuddy-learner-v1'
+const TODAY_LABEL = new Intl.DateTimeFormat('en-KE', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date()).toUpperCase()
 
 const avatarOptions = ['👧🏾', '👦🏿', '👧🏿', '👦🏾', '🧒🏽', '🧒🏿']
 
@@ -218,6 +221,9 @@ function isProfile(value: unknown): value is LearnerProfile {
     typeof profile.avatar === 'string' &&
     typeof profile.points === 'number' &&
     typeof profile.streak === 'number' &&
+    typeof profile.dailyActivities === 'number' &&
+    typeof profile.activityDate === 'string' &&
+    typeof profile.dailyChallengeDate === 'string' &&
     Array.isArray(profile.completedTopics) &&
     typeof profile.correctAnswers === 'number' &&
     typeof profile.attempts === 'object'
@@ -246,6 +252,7 @@ function dateKey() {
 
 function App() {
   const [profile, setProfile] = useState<LearnerProfile | null>(loadProfile)
+  const [todayKey, setTodayKey] = useState(dateKey)
   const [view, setView] = useState<View>(profile ? 'home' : 'home')
   const [subject, setSubject] = useState<Subject>('English')
   const [activeTopicId, setActiveTopicId] = useState<string | null>(null)
@@ -254,7 +261,6 @@ function App() {
   const [answer, setAnswer] = useState('')
   const [checked, setChecked] = useState<boolean | null>(null)
   const [correctInSession, setCorrectInSession] = useState(0)
-  const [dailyCompleted, setDailyCompleted] = useState(0)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
 
   useEffect(() => {
@@ -269,6 +275,7 @@ function App() {
   )
   const nextTopic = topics.find((topic) => topic.grade === profile?.grade && !profile.completedTopics.includes(topic.id))
     ?? topics.find((topic) => topic.grade === profile?.grade)
+  const dailyCompleted = profile?.activityDate === todayKey ? profile.dailyActivities : 0
 
   function createProfile(name: string, grade: number, avatar: string) {
     setProfile({
@@ -278,6 +285,9 @@ function App() {
       points: 0,
       streak: 0,
       lastStudyDate: '',
+      dailyActivities: 0,
+      activityDate: '',
+      dailyChallengeDate: '',
       completedTopics: [],
       correctAnswers: 0,
       attempts: {},
@@ -299,11 +309,12 @@ function App() {
   function recordAnswer(isCorrect: boolean) {
     if (!activeTopic || !profile) return
     setChecked(isCorrect)
+    const today = dateKey()
+    const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('en-CA')
+    setTodayKey(today)
     setProfile((current) => {
       if (!current) return current
       const previous = current.attempts[activeTopic.id] ?? { correct: 0, missed: 0 }
-      const today = dateKey()
-      const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('en-CA')
       const streak = current.lastStudyDate === today
         ? current.streak
         : current.lastStudyDate === yesterday
@@ -331,15 +342,21 @@ function App() {
     if (!activeTopic || !profile) return
     const alreadyCompleted = profile.completedTopics.includes(activeTopic.id)
     if (!alreadyCompleted) {
+      const today = dateKey()
+      setTodayKey(today)
       setProfile((current) => {
         if (!current || current.completedTopics.includes(activeTopic.id)) return current
+        const todayCount = current.activityDate === today ? current.dailyActivities : 0
+        const earnsDailyBonus = todayCount < 2 && todayCount + 1 >= 2 && current.dailyChallengeDate !== today
         return {
           ...current,
-          points: current.points + 35,
+          points: current.points + 35 + (earnsDailyBonus ? 15 : 0),
+          dailyActivities: todayCount + 1,
+          activityDate: today,
+          dailyChallengeDate: earnsDailyBonus ? today : current.dailyChallengeDate,
           completedTopics: [...current.completedTopics, activeTopic.id],
         }
       })
-      setDailyCompleted((count) => count + 1)
     }
     setStage('celebrate')
   }
@@ -510,7 +527,7 @@ function Dashboard({ profile, dailyCompleted, nextTopic, onStart, onExplore }: {
     <div className="page-content dashboard">
       <section className="welcome-banner">
         <div className="welcome-banner-copy">
-          <span className="eyebrow">TUESDAY, 15TH NOVEMBER</span>
+          <span className="eyebrow">{TODAY_LABEL}</span>
           <h1>Habari, {profile.name}! <span>✦</span></h1>
           <p>Ready to make today a little brighter? Let’s learn something new.</p>
           <button className="button-primary banner-button" onClick={() => nextTopic && onStart(nextTopic)}>
@@ -639,7 +656,6 @@ function LessonScreen({ profile, topic, stage, setStage, questionIndex, setQuest
   const stageIndex = stages.indexOf(stage)
   const exercise = topic.questions[questionIndex]
   const [arranged, setArranged] = useState<string[]>([])
-  const [selected, setSelected] = useState<string | null>(null)
   const isCorrect = checked === true
 
   function choose(value: string) {
@@ -662,7 +678,6 @@ function LessonScreen({ profile, topic, stage, setStage, questionIndex, setQuest
     setAnswer('')
     setChecked(null)
     setArranged([])
-    setSelected(null)
   }
 
   const canCheck = exercise?.type === 'arrange' ? arranged.length === exercise.options?.length : Boolean(answer.trim())
@@ -688,7 +703,7 @@ function LessonScreen({ profile, topic, stage, setStage, questionIndex, setQuest
         <div className="practice-topline"><span className="stage-kicker">YOUR TURN, {profile.name.toUpperCase()}!</span><span className="question-count">Question {questionIndex + 1} <i>of</i> {topic.questions.length}</span></div>
         {exercise.passage && <div className="reading-passage"><BookOpen size={17} /><p>{exercise.passage}</p></div>}
         <h2>{exercise.prompt}</h2>
-        {exercise.type === 'visual' && <div className="visual-objects" aria-label="Count the objects">{Array.from({ length: questionIndex === 0 && topic.id === 'math-mango-count' ? 4 : topic.id === 'math-market-sums' ? 3 : topic.id === 'math-sharing' ? 8 : 3 }, (_, index) => <span key={index}>{topic.id === 'math-sharing' ? '🥭' : topic.id === 'math-market-sums' ? '🍊' : '🥭'}</span>)}</div>}
+        {exercise.type === 'visual' && <div className="visual-objects" aria-label="Count the objects">{topic.id === 'math-market-sums' ? [0, 1, 2].map((group) => <span className="visual-group" key={group}><span>🍊🍊</span><span>🍊🍊</span></span>) : Array.from({ length: questionIndex === 0 && topic.id === 'math-mango-count' ? 4 : topic.id === 'math-sharing' ? 8 : 3 }, (_, index) => <span key={index}>{topic.id === 'math-market-sums' ? '🍊' : '🥭'}</span>)}</div>}
         {(exercise.type === 'choice' || exercise.type === 'match' || exercise.type === 'reading' || exercise.type === 'visual') && <div className="answer-options">
           {exercise.type === 'match' && <p className="match-label"><span className="match-word">{topic.id === 'english-kiosk-words' ? 'mango' : 'asante'}</span><ArrowRight size={17} /> Pick the meaning</p>}
           {exercise.options?.map((option, index) => <button key={option} className={`answer-option ${answer === option ? 'chosen' : ''} ${checked !== null && answer === option && isCorrect ? 'correct-choice' : ''}`} disabled={checked !== null} onClick={() => choose(option)}><span className="option-letter">{String.fromCharCode(65 + index)}</span>{option}{answer === option && checked === true && <CheckCircle2 className="option-check" size={18} />}</button>)}
