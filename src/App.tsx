@@ -56,6 +56,7 @@ type LearnerProfile = {
   dailyActivities: number
   activityDate: string
   dailyChallengeDate: string
+  activityHistory: Record<string, number>
   completedTopics: string[]
   correctAnswers: number
   attempts: Record<string, { correct: number; missed: number }>
@@ -221,11 +222,15 @@ function isProfile(value: unknown): value is LearnerProfile {
     typeof profile.avatar === 'string' &&
     typeof profile.points === 'number' &&
     typeof profile.streak === 'number' &&
+    typeof profile.lastStudyDate === 'string' &&
     typeof profile.dailyActivities === 'number' &&
     typeof profile.activityDate === 'string' &&
     typeof profile.dailyChallengeDate === 'string' &&
+    profile.activityHistory !== null &&
+    typeof profile.activityHistory === 'object' &&
     Array.isArray(profile.completedTopics) &&
     typeof profile.correctAnswers === 'number' &&
+    profile.attempts !== null &&
     typeof profile.attempts === 'object'
   )
 }
@@ -246,8 +251,8 @@ function say(text: string) {
   window.speechSynthesis.speak(message)
 }
 
-function dateKey() {
-  return new Date().toLocaleDateString('en-CA')
+function dateKey(date = new Date()) {
+  return date.toLocaleDateString('en-CA')
 }
 
 function App() {
@@ -261,6 +266,7 @@ function App() {
   const [answer, setAnswer] = useState('')
   const [checked, setChecked] = useState<boolean | null>(null)
   const [correctInSession, setCorrectInSession] = useState(0)
+  const [dailyBonusEarned, setDailyBonusEarned] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
 
   useEffect(() => {
@@ -273,7 +279,11 @@ function App() {
     () => topics.filter((topic) => topic.subject === subject && topic.grade === (profile?.grade ?? 1)),
     [profile?.grade, subject],
   )
-  const nextTopic = topics.find((topic) => topic.grade === profile?.grade && !profile.completedTopics.includes(topic.id))
+  const nextTopic = topics.find((topic) =>
+    topic.grade === profile?.grade &&
+    !profile.completedTopics.includes(topic.id) &&
+    (profile.attempts[topic.id]?.missed ?? 0) > (profile.attempts[topic.id]?.correct ?? 0),
+  ) ?? topics.find((topic) => topic.grade === profile?.grade && !profile.completedTopics.includes(topic.id))
     ?? topics.find((topic) => topic.grade === profile?.grade)
   const dailyCompleted = profile?.activityDate === todayKey ? profile.dailyActivities : 0
 
@@ -288,6 +298,7 @@ function App() {
       dailyActivities: 0,
       activityDate: '',
       dailyChallengeDate: '',
+      activityHistory: {},
       completedTopics: [],
       correctAnswers: 0,
       attempts: {},
@@ -303,6 +314,7 @@ function App() {
     setAnswer('')
     setChecked(null)
     setCorrectInSession(0)
+    setDailyBonusEarned(false)
     setView('lesson')
   }
 
@@ -344,16 +356,22 @@ function App() {
     if (!alreadyCompleted) {
       const today = dateKey()
       setTodayKey(today)
+      const currentTodayCount = profile.activityDate === today ? profile.dailyActivities : 0
+      const earnsDailyBonus = currentTodayCount < 2 && currentTodayCount + 1 >= 2 && profile.dailyChallengeDate !== today
+      setDailyBonusEarned(earnsDailyBonus)
       setProfile((current) => {
         if (!current || current.completedTopics.includes(activeTopic.id)) return current
         const todayCount = current.activityDate === today ? current.dailyActivities : 0
-        const earnsDailyBonus = todayCount < 2 && todayCount + 1 >= 2 && current.dailyChallengeDate !== today
         return {
           ...current,
           points: current.points + 35 + (earnsDailyBonus ? 15 : 0),
           dailyActivities: todayCount + 1,
           activityDate: today,
           dailyChallengeDate: earnsDailyBonus ? today : current.dailyChallengeDate,
+          activityHistory: {
+            ...current.activityHistory,
+            [today]: (current.activityHistory[today] ?? 0) + 1,
+          },
           completedTopics: [...current.completedTopics, activeTopic.id],
         }
       })
@@ -440,7 +458,7 @@ function App() {
           />
         )}
         {view === 'parent' && (
-          <ParentDashboard profile={profile} dailyCompleted={dailyCompleted} />
+          <ParentDashboard profile={profile} />
         )}
         {view === 'lesson' && activeTopic && (
           <LessonScreen
@@ -457,6 +475,7 @@ function App() {
             correctInSession={correctInSession}
             recordAnswer={recordAnswer}
             finishTopic={finishTopic}
+            dailyBonusEarned={dailyBonusEarned}
             resetLesson={resetLesson}
             onBack={() => navigate('learn')}
           />
@@ -635,7 +654,7 @@ function LearnScreen({ profile, subject, setSubject, subjectTopics, onStart }: {
   </div>
 }
 
-function LessonScreen({ profile, topic, stage, setStage, questionIndex, setQuestionIndex, answer, setAnswer, checked, setChecked, correctInSession, recordAnswer, finishTopic, resetLesson, onBack }: {
+function LessonScreen({ profile, topic, stage, setStage, questionIndex, setQuestionIndex, answer, setAnswer, checked, setChecked, correctInSession, recordAnswer, finishTopic, dailyBonusEarned, resetLesson, onBack }: {
   profile: LearnerProfile
   topic: Topic
   stage: LessonStage
@@ -649,6 +668,7 @@ function LessonScreen({ profile, topic, stage, setStage, questionIndex, setQuest
   correctInSession: number
   recordAnswer: (correct: boolean) => void
   finishTopic: () => void
+  dailyBonusEarned: boolean
   resetLesson: () => void
   onBack: () => void
 }) {
@@ -726,7 +746,8 @@ function LessonScreen({ profile, topic, stage, setStage, questionIndex, setQuest
         <div className="celebration-sparkles"><span>✦</span><span>✧</span><span>✹</span><span>✦</span></div>
         <div className="celebration-medal">🏅</div><span className="stage-kicker">YOU DID IT, {profile.name.toUpperCase()}!</span><h2>Look at you go! <span>🎉</span></h2>
         <p>You finished <strong>{topic.title}</strong>. You’re growing your brain with every little step.</p>
-        <div className="celebration-stats"><div><span>✦</span><strong>{correctInSession * 5 + 35}</strong><small>points earned</small></div><div><CheckCircle2 size={19} /><strong>{correctInSession} of {topic.questions.length}</strong><small>answers right</small></div></div>
+        <div className="celebration-stats"><div><span>✦</span><strong>{correctInSession * 5 + 35 + (dailyBonusEarned ? 15 : 0)}</strong><small>points earned</small></div><div><CheckCircle2 size={19} /><strong>{correctInSession} of {topic.questions.length}</strong><small>answers right</small></div></div>
+        {dailyBonusEarned && <p className="daily-bonus-note">🎯 Daily goal bonus: +15 points!</p>}
         <div className="recap-box"><Sparkles size={18} /><p><strong>Today you learned:</strong> {topic.lesson}</p></div>
         <div className="celebrate-actions"><button className="button-primary" onClick={onBack}>Back to adventures <ArrowRight size={17} /></button><button className="button-soft" onClick={resetLesson}>Practise again <RotateCcw size={16} /></button></div>
       </div>}
@@ -735,7 +756,7 @@ function LessonScreen({ profile, topic, stage, setStage, questionIndex, setQuest
   </div>
 }
 
-function ParentDashboard({ profile, dailyCompleted }: { profile: LearnerProfile; dailyCompleted: number }) {
+function ParentDashboard({ profile }: { profile: LearnerProfile }) {
   const [weekOffset, setWeekOffset] = useState(0)
   const completedTopics = topics.filter((topic) => profile.completedTopics.includes(topic.id))
   const weakTopics = Object.entries(profile.attempts)
@@ -744,20 +765,42 @@ function ParentDashboard({ profile, dailyCompleted }: { profile: LearnerProfile;
     .filter((topic): topic is Topic => Boolean(topic))
   const totalAnswers = Object.values(profile.attempts).reduce((total, result) => total + result.correct + result.missed, 0)
   const accuracy = totalAnswers ? Math.round((profile.correctAnswers / totalAnswers) * 100) : 0
-  const chartDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  const today = new Date()
+  const monday = new Date(today)
+  monday.setHours(0, 0, 0, 0)
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
+  const minutesThisWeek = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(monday)
+    date.setDate(date.getDate() + index)
+    return profile.activityHistory[dateKey(date)] ?? 0
+  }).reduce((sum, activities) => sum + activities * 5, 0)
+  const selectedMonday = new Date(monday)
+  selectedMonday.setDate(selectedMonday.getDate() - weekOffset * 7)
+  const weekDays = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(selectedMonday)
+    date.setDate(date.getDate() + index)
+    return { label: date.toLocaleDateString('en-KE', { weekday: 'short' }), activities: profile.activityHistory[dateKey(date)] ?? 0 }
+  })
+  const lastActivity = profile.lastStudyDate === dateKey()
+    ? 'Last active today'
+    : profile.lastStudyDate === dateKey(new Date(Date.now() - 86400000))
+      ? 'Last active yesterday'
+      : profile.lastStudyDate
+        ? `Last active ${new Date(profile.lastStudyDate).toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}`
+        : 'No activity yet'
   return <div className="page-content parent-page">
     <div className="page-intro parent-intro"><div><span className="eyebrow">A LITTLE LOOK AT THE GROWING</span><h1>{profile.name}’s learning <span>🌱</span></h1><p>A gentle overview of the time and care they put into learning.</p></div><div className="parent-readonly"><LockKeyhole size={14} /> PRIVATE PARENT VIEW</div></div>
     <section className="parent-overview">
-      <div className="child-card"><div className="parent-avatar">{profile.avatar}</div><div><span className="eyebrow">YOUR LEARNER</span><h2>{profile.name}</h2><p>Grade {profile.grade} <span>•</span> Learning at their own pace</p></div><div className="child-star">✦</div></div>
-      <div className="parent-stat"><span className="parent-stat-icon time"><Clock3 size={19} /></span><span className="eyebrow">TIME LEARNING</span><strong>{Math.max(1, completedTopics.length * 5 + dailyCompleted * 2)} <small>min</small></strong><p>Approx. this week</p></div>
+      <div className="child-card"><div className="parent-avatar">{profile.avatar}</div><div><span className="eyebrow">YOUR LEARNER</span><h2>{profile.name}</h2><p>Grade {profile.grade} <span>•</span> {lastActivity}</p></div><div className="child-star">✦</div></div>
+      <div className="parent-stat"><span className="parent-stat-icon time"><Clock3 size={19} /></span><span className="eyebrow">TIME LEARNING</span><strong>{minutesThisWeek} <small>min</small></strong><p>Approx. this week</p></div>
       <div className="parent-stat"><span className="parent-stat-icon accuracy"><CheckCircle2 size={19} /></span><span className="eyebrow">QUESTIONS RIGHT</span><strong>{accuracy}<small>%</small></strong><p>{totalAnswers ? `${profile.correctAnswers} correct answers` : 'Ready to begin'}</p></div>
     </section>
     <section className="parent-content-grid">
       <div className="parent-panel weekly-panel">
         <div className="panel-heading"><div><span className="eyebrow">STEADY STEPS</span><h2>This week’s activity</h2></div><div className="week-controls"><button aria-label="Previous week" onClick={() => setWeekOffset((offset) => offset + 1)}><ArrowLeft size={15} /></button><span>{weekOffset ? `${weekOffset} week${weekOffset > 1 ? 's' : ''} ago` : 'This week'}</span><button aria-label="Next week" disabled={!weekOffset} onClick={() => setWeekOffset((offset) => Math.max(0, offset - 1))}><ArrowRight size={15} /></button></div></div>
-        <div className="weekly-chart">{chartDays.map((day, index) => {
-          const height = weekOffset === 0 ? [18, dailyCompleted ? 48 : 12, 27, 12, 38, 12, 15][index] : [25, 16, 43, 26, 13, 30, 18][index]
-          return <div className="chart-column" key={day}><span className="chart-bar" style={{ height: `${height}px` }} /><span className="chart-day">{day}</span></div>
+        <div className="weekly-chart">{weekDays.map(({ label, activities }, index) => {
+          const height = Math.min(70, activities * 22)
+          return <div className="chart-column" key={`${label}-${index}`}><span className={activities ? 'chart-bar' : 'chart-bar no-activity'} style={{ height: `${height}px` }} /><span className="chart-day">{label}</span></div>
         })}</div>
         <div className="chart-caption"><span><i /> Learning activity</span><span>Little and often makes a big difference.</span></div>
       </div>

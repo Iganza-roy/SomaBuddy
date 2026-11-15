@@ -25,7 +25,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid #a78bfa; outline-
 .sidebar {
   width: 248px; flex: 0 0 248px; min-height: 100vh; padding: 27px 17px 18px;
   background: #fff; border-right: 1px solid #efecf4; display: flex; flex-direction: column;
-  position: sticky; top: 0; height: 100vh; z-index: 20;
+  position: sticky; top: 0; height: 100vh; z-index: 20; overflow-y: auto;
 }
 .brand { display: flex; align-items: center; gap: 10px; padding: 0 13px 36px; color: #302d39; }
 .brand-mark { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: var(--purple); color: #fff; font: 900 25px/1 'Nunito', sans-serif; position: relative; }
@@ -50,6 +50,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid #a78bfa; outline-
 .profile-switch span { color: #a09ca9; font-size: 10px; }
 .profile-switch button { background: transparent; border: 0; padding: 7px; color: #aaa5b2; cursor: pointer; border-radius: 8px; }
 .profile-switch button:hover { color: var(--purple); background: #f6f1ff; }
+.sidebar { scrollbar-width: thin; scrollbar-color: #e7e0f1 transparent; }
 
 .main-area { flex: 1; min-width: 0; }
 .topbar { height: 72px; display: flex; align-items: center; justify-content: space-between; padding: 0 47px; background: rgba(255,255,255,.82); border-bottom: 1px solid #efecf4; }
@@ -337,6 +338,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid #a78bfa; outline-
 .celebration-stats > div > svg { color: #60ab7b; }
 .celebration-stats strong { font: 900 16px 'Nunito', sans-serif; }
 .celebration-stats small { color: #9c96a3; font-size: 8px; text-align: left; }
+.daily-bonus-note { margin: 0 auto 10px !important; color: #b08a19 !important; font-size: 10px !important; font-weight: 800; }
 .recap-box { max-width: 470px; display: flex; gap: 8px; align-items: flex-start; margin: 0 auto; padding: 10px 12px; border-radius: 11px; background: #fff9df; color: #ae8e32; text-align: left; }
 .recap-box svg { flex: 0 0 auto; margin-top: 1px; }
 .recap-box p { margin: 0; color: #79717e; font-size: 9px; line-height: 1.6; }
@@ -374,6 +376,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid #a78bfa; outline-
 .weekly-chart { height: 111px; display: flex; justify-content: space-around; align-items: flex-end; padding: 13px 12px 2px; margin-top: 9px; border-bottom: 1px solid #f0edf4; }
 .chart-column { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 29px; }
 .chart-bar { min-height: 8px; width: 14px; border-radius: 7px 7px 3px 3px; background: #c7b2f6; transition: height .2s; }
+.chart-bar.no-activity { min-height: 3px; background: #eeebf2; }
 .chart-column:nth-child(2n) .chart-bar { background: #e9dafb; }
 .chart-day { color: #a7a1ae; font-size: 8px; }
 .chart-caption { display: flex; justify-content: space-between; margin-top: 9px; color: #aaa4b1; font-size: 8px; }
