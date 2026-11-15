@@ -24,9 +24,10 @@ import {
 import './App.css'
 
 type Subject = 'English' | 'Kiswahili' | 'Mathematics'
-type ActivityType = 'choice' | 'fill' | 'match' | 'arrange' | 'reading' | 'visual'
+type ActivityType = 'choice' | 'fill' | 'arrange-match' | 'reading' | 'visual'
 type Exercise = {
   type: ActivityType
+  mode?: 'match' | 'arrange'
   prompt: string
   options?: string[]
   answer: string
@@ -83,7 +84,7 @@ const topics: Topic[] = [
     example: 'The shopkeeper sells a mango.',
     exampleNote: '“Shopkeeper” is a person. “Mango” is a thing. Both are nouns!',
     questions: [
-      { type: 'match', prompt: 'Match “mango” to what it is.', options: ['A fruit', 'A place', 'A person'], answer: 'A fruit', feedback: 'A mango is a fruit. You might find one at the market!', hint: 'Think of something sweet and juicy.' },
+      { type: 'arrange-match', mode: 'match', prompt: 'Match “mango” to what it is.', options: ['A fruit', 'A place', 'A person'], answer: 'A fruit', feedback: 'A mango is a fruit. You might find one at the market!', hint: 'Think of something sweet and juicy.' },
       { type: 'choice', prompt: 'Which word names a person?', options: ['Kiosk', 'Amina', 'Mandazi'], answer: 'Amina', feedback: 'Amina is a person. A kiosk is a place and mandazi is a thing.', hint: 'Look for the name of someone.' },
     ],
   },
@@ -98,7 +99,7 @@ const topics: Topic[] = [
     example: 'Asha buys ripe mangoes.',
     exampleNote: 'Who? Asha. What does she do? Buys. What does she buy? Ripe mangoes.',
     questions: [
-      { type: 'arrange', prompt: 'Put the words in the right order.', options: ['mandazi.', 'Juma', 'eats', 'a warm'], answer: 'Juma eats a warm mandazi.', feedback: 'Juma eats a warm mandazi. The sentence starts with who, then what they do.', hint: 'Start with the person, then the action.' },
+      { type: 'arrange-match', mode: 'arrange', prompt: 'Put the words in the right order.', options: ['mandazi.', 'Juma', 'eats', 'a warm'], answer: 'Juma eats a warm mandazi.', feedback: 'Juma eats a warm mandazi. The sentence starts with who, then what they do.', hint: 'Start with the person, then the action.' },
       { type: 'fill', prompt: 'Finish the sentence: The matatu is _____.', options: ['blue', 'runs', 'quickly'], answer: 'blue', feedback: '“Blue” tells us what the matatu looks like. It describes the matatu.', hint: 'Choose a word that tells us its colour.' },
     ],
   },
@@ -129,7 +130,7 @@ const topics: Topic[] = [
     exampleNote: '“Habari za asubuhi” ni salamu ya asubuhi. “Asante” ni neno la shukrani.',
     questions: [
       { type: 'choice', prompt: 'Unasema nini ukikutana na rafiki asubuhi?', options: ['Habari za asubuhi', 'Usiku mwema', 'Kwaheri'], answer: 'Habari za asubuhi', feedback: 'Ndiyo! “Habari za asubuhi” ni salamu ya asubuhi.', hint: 'Chagua salamu ya asubuhi.' },
-      { type: 'match', prompt: 'Linganisha “asante” na maana yake.', options: ['Thank you', 'Good night', 'Goodbye'], answer: 'Thank you', feedback: '“Asante” maana yake ni “thank you”. Tunatumia tunaposhukuru.', hint: 'Ni neno la kumshukuru mtu.' },
+      { type: 'arrange-match', mode: 'match', prompt: 'Linganisha “asante” na maana yake.', options: ['Thank you', 'Good night', 'Goodbye'], answer: 'Thank you', feedback: '“Asante” maana yake ni “thank you”. Tunatumia tunaposhukuru.', hint: 'Ni neno la kumshukuru mtu.' },
     ],
   },
   {
@@ -159,7 +160,7 @@ const topics: Topic[] = [
     exampleNote: 'Tunaweza kuona nani anafanya nini na mahali anapofanya.',
     questions: [
       { type: 'reading', passage: 'Baraka anaenda sokoni na mama yake. Wananunua viazi vitamu na mahindi. Baraka anabeba mahindi nyumbani.', prompt: 'Baraka anabeba nini nyumbani?', options: ['Mahindi', 'Viatu', 'Vitabu'], answer: 'Mahindi', feedback: 'Sentensi ya mwisho inasema Baraka anabeba mahindi nyumbani.', hint: 'Soma sentensi ya mwisho tena.' },
-      { type: 'arrange', prompt: 'Panga maneno ili kutengeneza sentensi.', options: ['sokoni.', 'ananunua', 'Akinyi', 'nyanya'], answer: 'Akinyi ananunua nyanya sokoni.', feedback: 'Akinyi ananunua nyanya sokoni. Sentensi inaanza kwa jina na kuishia kwa nukta.', hint: 'Anza kwa jina la mtu.' },
+      { type: 'arrange-match', mode: 'arrange', prompt: 'Panga maneno ili kutengeneza sentensi.', options: ['sokoni.', 'ananunua', 'Akinyi', 'nyanya'], answer: 'Akinyi ananunua nyanya sokoni.', feedback: 'Akinyi ananunua nyanya sokoni. Sentensi inaanza kwa jina na kuishia kwa nukta.', hint: 'Anza kwa jina la mtu.' },
     ],
   },
   {
@@ -275,6 +276,7 @@ function App() {
   const [checked, setChecked] = useState<boolean | null>(null)
   const [correctInSession, setCorrectInSession] = useState(0)
   const [dailyBonusEarned, setDailyBonusEarned] = useState(false)
+  const [completionBonusEarned, setCompletionBonusEarned] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
 
   useEffect(() => {
@@ -323,6 +325,7 @@ function App() {
     setChecked(null)
     setCorrectInSession(0)
     setDailyBonusEarned(false)
+    setCompletionBonusEarned(false)
     setView('lesson')
   }
 
@@ -339,7 +342,7 @@ function App() {
         ? current.streak
         : current.lastStudyDate === yesterday
           ? current.streak + 1
-          : 1
+          : Math.max(current.streak, 1)
       return {
         ...current,
         points: current.points + (isCorrect ? 5 : 0),
@@ -361,6 +364,7 @@ function App() {
   function finishTopic() {
     if (!activeTopic || !profile) return
     const alreadyCompleted = profile.completedTopics.includes(activeTopic.id)
+    setCompletionBonusEarned(!alreadyCompleted)
     if (!alreadyCompleted) {
       const today = dateKey()
       setTodayKey(today)
@@ -484,6 +488,7 @@ function App() {
             recordAnswer={recordAnswer}
             finishTopic={finishTopic}
             dailyBonusEarned={dailyBonusEarned}
+            completionBonusEarned={completionBonusEarned}
             resetLesson={resetLesson}
             onBack={() => navigate('learn')}
           />
@@ -618,7 +623,7 @@ function Dashboard({ profile, dailyCompleted, nextTopic, onStart, onExplore }: {
             <Badge icon="📚" label="Reading Star" unlocked={completed > 0 && profile.completedTopics.some((id) => topics.find((topic) => topic.id === id)?.subject === 'English')} />
             <Badge icon="🔢" label="Math Explorer" unlocked={completed > 0 && profile.completedTopics.some((id) => topics.find((topic) => topic.id === id)?.subject === 'Mathematics')} />
             <Badge icon="💬" label="Word Wizard" unlocked={completed > 0 && profile.completedTopics.some((id) => topics.find((topic) => topic.id === id)?.subject === 'Kiswahili')} />
-            <Badge icon="🌟" label="Super Steady" unlocked={profile.streak >= 3} />
+            <Badge icon="🌟" label="Consistent Learner" unlocked={profile.streak >= 3} />
           </div>
         </div>
       </section>
@@ -662,7 +667,7 @@ function LearnScreen({ profile, subject, setSubject, subjectTopics, onStart }: {
   </div>
 }
 
-function LessonScreen({ profile, topic, stage, setStage, questionIndex, setQuestionIndex, answer, setAnswer, checked, setChecked, correctInSession, recordAnswer, finishTopic, dailyBonusEarned, resetLesson, onBack }: {
+function LessonScreen({ profile, topic, stage, setStage, questionIndex, setQuestionIndex, answer, setAnswer, checked, setChecked, correctInSession, recordAnswer, finishTopic, dailyBonusEarned, completionBonusEarned, resetLesson, onBack }: {
   profile: LearnerProfile
   topic: Topic
   stage: LessonStage
@@ -677,6 +682,7 @@ function LessonScreen({ profile, topic, stage, setStage, questionIndex, setQuest
   recordAnswer: (correct: boolean) => void
   finishTopic: () => void
   dailyBonusEarned: boolean
+  completionBonusEarned: boolean
   resetLesson: () => void
   onBack: () => void
 }) {
@@ -693,7 +699,7 @@ function LessonScreen({ profile, topic, stage, setStage, questionIndex, setQuest
 
   function checkAnswer() {
     if (checked !== null || !exercise) return
-    const submitted = exercise.type === 'arrange' ? arranged.join(' ') : answer.trim()
+    const submitted = exercise.mode === 'arrange' ? arranged.join(' ') : answer.trim()
     recordAnswer(submitted.toLowerCase() === exercise.answer.trim().toLowerCase())
   }
 
@@ -708,7 +714,7 @@ function LessonScreen({ profile, topic, stage, setStage, questionIndex, setQuest
     setArranged([])
   }
 
-  const canCheck = exercise?.type === 'arrange' ? arranged.length === exercise.options?.length : Boolean(answer.trim())
+  const canCheck = exercise?.mode === 'arrange' ? arranged.length === exercise.options?.length : Boolean(answer.trim())
   return <div className="page-content lesson-page">
     <button className="back-link" onClick={onBack}><ArrowLeft size={17} /> Back to topics</button>
     <div className="lesson-top"><div><span className="eyebrow">{topic.subject.toUpperCase()} • GRADE {profile.grade}</span><h1>{topic.title}</h1></div><button className="listen-button" onClick={() => say(`${topic.title}. ${topic.lesson}`)}><Headphones size={17} /> Listen</button></div>
@@ -732,12 +738,12 @@ function LessonScreen({ profile, topic, stage, setStage, questionIndex, setQuest
         {exercise.passage && <div className="reading-passage"><BookOpen size={17} /><p>{exercise.passage}</p></div>}
         <h2>{exercise.prompt}</h2>
         {exercise.type === 'visual' && <div className="visual-objects" aria-label="Count the objects">{topic.id === 'math-market-sums' ? [0, 1, 2].map((group) => <span className="visual-group" key={group}><span>🍊🍊</span><span>🍊🍊</span></span>) : Array.from({ length: questionIndex === 0 && topic.id === 'math-mango-count' ? 4 : topic.id === 'math-sharing' ? 8 : 3 }, (_, index) => <span key={index}>{topic.id === 'math-market-sums' ? '🍊' : '🥭'}</span>)}</div>}
-        {(exercise.type === 'choice' || exercise.type === 'match' || exercise.type === 'reading' || exercise.type === 'visual') && <div className="answer-options">
-          {exercise.type === 'match' && <p className="match-label"><span className="match-word">{topic.id === 'english-kiosk-words' ? 'mango' : 'asante'}</span><ArrowRight size={17} /> Pick the meaning</p>}
+        {(exercise.type === 'choice' || (exercise.type === 'arrange-match' && exercise.mode === 'match') || exercise.type === 'reading' || exercise.type === 'visual') && <div className="answer-options">
+          {exercise.mode === 'match' && <p className="match-label"><span className="match-word">{topic.id === 'english-kiosk-words' ? 'mango' : 'asante'}</span><ArrowRight size={17} /> Pick the meaning</p>}
           {exercise.options?.map((option, index) => <button key={option} className={`answer-option ${answer === option ? 'chosen' : ''} ${checked !== null && answer === option && isCorrect ? 'correct-choice' : ''}`} disabled={checked !== null} onClick={() => choose(option)}><span className="option-letter">{String.fromCharCode(65 + index)}</span>{option}{answer === option && checked === true && <CheckCircle2 className="option-check" size={18} />}</button>)}
         </div>}
         {exercise.type === 'fill' && <div className="fill-area"><div className="fill-input-row"><input aria-label="Your answer" value={answer} disabled={checked !== null} onChange={(event) => choose(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && canCheck) checkAnswer() }} placeholder="Type your answer..." autoComplete="off" />{exercise.options?.map((option) => <button className="word-suggestion" key={option} onClick={() => choose(option)} disabled={checked !== null}>{option}</button>)}</div></div>}
-        {exercise.type === 'arrange' && <div className="arrange-area">
+        {exercise.mode === 'arrange' && <div className="arrange-area">
           <div className="arranged-answer" aria-label="Your sentence">{arranged.length ? arranged.map((word, index) => <button key={`${word}-${index}`} disabled={checked !== null} onClick={() => { setArranged(arranged.filter((_, wordIndex) => wordIndex !== index)); setChecked(null) }}>{word}</button>) : <span>Tap the words to build your sentence...</span>}</div>
           <div className="word-tiles">{exercise.options?.map((word, index) => <button key={`${word}-${index}`} className={arranged.filter((item) => item === word).length > exercise.options!.slice(0, index + 1).filter((item) => item === word).length - 1 ? 'word-tile used' : 'word-tile'} disabled={arranged.filter((item) => item === word).length > exercise.options!.slice(0, index).filter((item) => item === word).length || checked !== null} onClick={() => { setArranged([...arranged, word]); setChecked(null) }}>{word}</button>)}</div>
           <button className="clear-words" onClick={() => setArranged([])} disabled={!arranged.length || checked !== null}>Clear words</button>
@@ -747,14 +753,14 @@ function LessonScreen({ profile, topic, stage, setStage, questionIndex, setQuest
         </div>}
         <div className="practice-actions">
           <span className="practice-points"><span>✦</span> +5 points for a correct answer</span>
-          {checked === null ? <button className="button-primary" disabled={!canCheck} onClick={checkAnswer}>Check my answer <Check size={17} /></button> : isCorrect ? <button className="button-primary" onClick={nextQuestion}>{questionIndex + 1 >= topic.questions.length ? 'Finish this topic' : 'Next question'} <ArrowRight size={17} /></button> : <button className="button-soft" onClick={() => { setChecked(null); if (exercise.type === 'arrange') setArranged([]); else setAnswer('') }}>Try again <RotateCcw size={16} /></button>}
+          {checked === null ? <button className="button-primary" disabled={!canCheck} onClick={checkAnswer}>Check my answer <Check size={17} /></button> : isCorrect ? <button className="button-primary" onClick={nextQuestion}>{questionIndex + 1 >= topic.questions.length ? 'Finish this topic' : 'Next question'} <ArrowRight size={17} /></button> : <button className="button-soft" onClick={() => { setChecked(null); if (exercise.mode === 'arrange') setArranged([]); else setAnswer('') }}>Try again <RotateCcw size={16} /></button>}
         </div>
       </div>}
       {stage === 'celebrate' && <div className="celebrate-stage">
         <div className="celebration-sparkles"><span>✦</span><span>✧</span><span>✹</span><span>✦</span></div>
         <div className="celebration-medal">🏅</div><span className="stage-kicker">YOU DID IT, {profile.name.toUpperCase()}!</span><h2>Look at you go! <span>🎉</span></h2>
         <p>You finished <strong>{topic.title}</strong>. You’re growing your brain with every little step.</p>
-        <div className="celebration-stats"><div><span>✦</span><strong>{correctInSession * 5 + 35 + (dailyBonusEarned ? 15 : 0)}</strong><small>points earned</small></div><div><CheckCircle2 size={19} /><strong>{correctInSession} of {topic.questions.length}</strong><small>answers right</small></div></div>
+        <div className="celebration-stats"><div><span>✦</span><strong>{correctInSession * 5 + (completionBonusEarned ? 35 : 0) + (dailyBonusEarned ? 15 : 0)}</strong><small>points earned</small></div><div><CheckCircle2 size={19} /><strong>{correctInSession} of {topic.questions.length}</strong><small>answers right</small></div></div>
         {dailyBonusEarned && <p className="daily-bonus-note">🎯 Daily goal bonus: +15 points!</p>}
         <div className="recap-box"><Sparkles size={18} /><p><strong>Today you learned:</strong> {topic.lesson}</p></div>
         <div className="celebrate-actions"><button className="button-primary" onClick={onBack}>Back to adventures <ArrowRight size={17} /></button><button className="button-soft" onClick={resetLesson}>Practise again <RotateCcw size={16} /></button></div>
@@ -822,8 +828,18 @@ function ParentDashboard({ profile, todayKey }: { profile: LearnerProfile; today
           const areaTopics = topics.filter((topic) => topic.subject === item && topic.grade === profile.grade)
           const done = areaTopics.filter((topic) => profile.completedTopics.includes(topic.id)).length
           const percentage = areaTopics.length ? Math.round((done / areaTopics.length) * 100) : 0
+          const subjectResults = areaTopics.reduce((totals, topic) => {
+            const result = profile.attempts[topic.id]
+            return {
+              correct: totals.correct + (result?.correct ?? 0),
+              attempted: totals.attempted + (result?.correct ?? 0) + (result?.missed ?? 0),
+            }
+          }, { correct: 0, attempted: 0 })
+          const subjectAccuracy = subjectResults.attempted
+            ? Math.round((subjectResults.correct / subjectResults.attempted) * 100)
+            : null
           const info = subjectInfo[item]
-          return <div className="subject-progress-row" key={item}><span className={`progress-subject-icon ${info.tone}`}>{info.icon}</span><div className="subject-progress-info"><div><strong>{item}</strong><span>{done} of {areaTopics.length} topics</span></div><div className="progress-track"><span className={info.tone} style={{ width: `${percentage}%` }} /></div></div></div>
+          return <div className="subject-progress-row" key={item}><span className={`progress-subject-icon ${info.tone}`}>{info.icon}</span><div className="subject-progress-info"><div><strong>{item}</strong><span>{done}/{areaTopics.length} topics · {subjectAccuracy === null ? 'Just starting' : `${subjectAccuracy}% correct`}</span></div><div className="progress-track"><span className={info.tone} style={{ width: `${percentage}%` }} /></div></div></div>
         })}</div>
       </div>
     </section>
